@@ -14,22 +14,26 @@ test_data = datasets.MNIST(root="./data/", train=False, transform=transforms.ToT
 train_load = DataLoader(dataset=train_data, batch_size=32, shuffle=True)
 test_load = DataLoader(dataset=test_data, batch_size=32, shuffle=False)
 
-def display(loader):
+def display(loader, n, train = True):
 	dataiter = iter(loader)
 	img, label = dataiter.next()
-	# print label[0]
-	# test = img[0].numpy()
-	# cv2.imshow("test", np.squeeze(test))
-	# cv2.waitKey(0)
+	if train == False:
+		outputs = net(Variable(img))
+		_, pred_tensor = torch.max(outputs, 1)
+		pred = pred_tensor.data.numpy().reshape(-1)
 
-	outputs = net(Variable(img))
-	_, pred = torch.max(outputs, 1)
-	print "Prediction : "
-	print label.numpy()
-	print pred.data.numpy().reshape(-1)
+	for i in range(n):
+		test = img[i].numpy()
+		if train == False:
+			print "Label : {} Prediction : {}".format(label[i], pred[i])
+		else:
+			print "Label : {}".format(label[i])
+		cv2.imshow("Digit", np.squeeze(test))
+		cv2.waitKey(0)
 
-# for i in range(5):
-# 	display()
+	cv2.destroyAllWindows()
+
+display(train_load, 5)
 
 class Net(nn.Module):
 	def __init__(self):
@@ -54,49 +58,46 @@ net = Net()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr = 0.01, momentum = 0.5)
 
-pytorch_total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
-print pytorch_total_params
+# torch.save(net, "mnist_nn")
 
-steps = 3
-for step in range(steps):
-	for i, data in enumerate(train_load):
+# net = torch.load("mnist_nn")
+
+pytorch_total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
+print "Total parameters : {}".format(pytorch_total_params)
+
+def train(epochs):
+	net.train()
+	for epoch in range(epochs):
+		for i, data in enumerate(train_load):
+			inputs, labels = data
+
+			outputs = net(Variable(inputs))
+			loss = criterion(outputs, Variable(labels))
+
+			if i%100 == 0:
+				print "Loss : {}".format(loss.data[0])
+
+			optimizer.zero_grad()
+			loss.backward()
+			optimizer.step()
+
+	print "Training Done"
+
+def eval():
+	correct = 0
+	total = 0
+	net.eval()
+	for data in test_load:
 		inputs, labels = data
 
 		outputs = net(Variable(inputs))
-		loss = criterion(outputs, Variable(labels))
 
-		if i%100 == 0:
-			print " Loss : " + str(loss.data[0])
+		_, pred = torch.max(outputs, 1)
 
-		optimizer.zero_grad()
-		loss.backward()
-		optimizer.step()
+		total += labels.size(0)
+		correct += torch.sum(pred == Variable(labels)).data[0]
+	print total, correct
+	print "Accuracy : " + str(float(correct) * 100 / total)
 
-
-print "Training Done"
-
-# dataiter = iter(train_load)
-# img, label = dataiter.next()
-# output = net(Variable(img))
-# _, pred = torch.max(output, 1)
-
-# for i in range(5):
-# 	disp = img[i].numpy()
-# 	print "Label : " + str(label[i]) + ", Prediction : " + str(pred.data[i][0])
-# 	cv2.imshow("Image", np.squeeze(disp))
-# 	cv2.waitKey(1)
-
-correct = 0
-total = 0
-
-for data in test_load:
-	inputs, labels = data
-
-	outputs = net(Variable(inputs))
-
-	_, pred = torch.max(outputs, 1)
-
-	total += labels.size(0)
-	correct += torch.sum(pred == Variable(labels)).data[0]
-print total, correct
-print "Accuracy : " + str(float(correct) * 100 / total)
+train(1)
+eval()
