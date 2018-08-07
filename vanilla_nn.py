@@ -19,13 +19,15 @@ def display(loader, n, train = True):
 	img, label = dataiter.next()
 	if train == False:
 		outputs = net(Variable(img))
-		_, pred_tensor = torch.max(outputs, 1)
-		pred = pred_tensor.data.numpy().reshape(-1)
+		# _, pred_tensor = torch.max(outputs, 1)
+		# pred = pred_tensor.data.numpy().reshape(-1)
 
 	for i in range(n):
 		test = img[i].numpy()
 		if train == False:
-			print "Label : {} Prediction : {}".format(label[i], pred[i])
+			pred = torch.topk(outputs[i], 1)[1].data[0]
+			print "Label : {} Prediction : {}".format(label[i], pred)
+
 		else:
 			print "Label : {}".format(label[i])
 		cv2.imshow("Digit", np.squeeze(test))
@@ -97,7 +99,9 @@ def eval():
 		total += labels.size(0)
 		correct += torch.sum(pred == Variable(labels)).data[0]
 	print total, correct
-	print "Accuracy : " + str(float(correct) * 100 / total)
+	print "Accuracy : {}%".format(float(correct) * 100 / total)
 
-train(1)
+train(10)
 eval()
+
+display(test_load, 5, 0)
