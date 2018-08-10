@@ -52,8 +52,8 @@ def draw_digit(event, x, y, flags, param):
 		if draw:
 			draw = False
 
-
-img = np.zeros((100, 100), np.uint8)
+canvas_size = 100
+img = np.zeros((canvas_size, canvas_size), np.uint8)
 
 cv2.namedWindow('image')
 cv2.createTrackbar('Thickness', 'image', 5, 30, nothing)
@@ -71,10 +71,10 @@ while(1):
 		pred = pred_tensor.data.numpy()[0][0]
 
 		print "Prediction : {}".format(pred)
-		img = np.zeros((100, 100), np.uint8)
+		img = np.zeros((canvas_size, canvas_size), np.uint8)
 
 	elif k == ord('c'):
-		img = np.zeros((100, 100), np.uint8)
+		img = np.zeros((canvas_size, canvas_size), np.uint8)
 
 	elif k == ord('q'):
 		break
