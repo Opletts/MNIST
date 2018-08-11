@@ -92,6 +92,8 @@ class Generator(nn.Module):
 
 		return x
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 disc = Discriminator()
 gen = Generator()
 
@@ -105,42 +107,66 @@ print "Discriminator parameters : {}".format(total_params)
 total_params = sum(p.numel() for p in gen.parameters() if p.requires_grad)
 print "Generator parameters : {}".format(total_params)
 
-def train_gan(epochs):
+def train_disc(real_imgs, fake_imgs, real_labels, fake_labels):
 	disc.train()
+	optimizer_disc.zero_grad()
+	real_outputs = disc(real_imgs)
+	real_loss = criterion(real_outputs, real_labels)
+
+	fake_outputs = disc(fake_imgs)
+	fake_loss = criterion(fake_outputs, fake_labels)
+
+	loss = real_loss + fake_loss
+
+	loss.backward()
+	optimizer_disc.step()
+
+	return loss
+
+def train_gen(fake_inputs):
 	gen.train()
-	for epoch in range(epochs):
-		for i, data in enumerate(train_load):
-			
-			inputs, _ = data
-			labels = Variable(torch.ones(inputs.size(0)))
+	optimizer_gen.zero_grad()
 
-			outputs = disc(Variable(inputs))
+	outputs = disc(fake_inputs)
 
-			real_loss = criterion(outputs, labels)
+	real_labels = Variable(torch.ones(real_imgs.size(0)))
+	real_labels = real_labels.to(device)
 
-			noise = Variable(torch.randn(inputs.size(0), 100))
-			fake_inputs = gen(noise)
+	gen_loss = criterion(outputs, real_labels)
 
-			fake_labels = Variable(torch.zeros(inputs.size(0)))
+	gen_loss.backward()
+	optimizer_gen.step()
 
-			outputs = disc(fake_inputs)
+	return gen_loss
 
-			fake_loss = criterion(outputs, fake_labels)
 
-			loss = real_loss + fake_loss
+epochs = 100
 
-			gen_loss = criterion(outputs, labels)
+for epoch in range(epochs):
+	for i, data in enumerate(train_load):
+		real_imgs, _ = data
+		real_imgs = real_imgs.to(device)
 
-			if i%100 == 0:
-				print "Discriminator Loss : {} Generator Loss : {}".format(loss.data[0], gen_loss.data[0])
-				display(fake_inputs)
+		disc_noise = Variable(torch.randn(real_imgs.size(0), 100))
+		disc_noise = disc_noise.to(device)
 
-			optimizer_disc.zero_grad()
-			loss.backward(retain_variables=True)
-			optimizer_disc.step()
+		fake_imgs = gen(disc_noise).detach()
 
-			optimizer_gen.zero_grad()
-			gen_loss.backward()			
-			optimizer_gen.step()
+		real_labels = Variable(torch.ones(real_imgs.size(0)))
+		real_labels = real_labels.to(device)
 
-train_gan(1)
+		fake_labels = Variable(torch.zeros(real_imgs.size(0)))
+		fake_labels = fake_labels.to(device)
+
+		disc_loss = train_disc(Variable(real_imgs), fake_imgs, real_labels, fake_labels)
+
+		gen_noise = Variable(torch.randn(real_imgs.size(0), 100))
+		gen_noise = gen_noise.to(device)
+
+		gen_img = gen(gen_noise)
+		gen_img = gen_img.to(device)
+
+		g_loss = train_gen(gen_img)
+
+		if i%100==0:
+			print "Discriminator Loss : {} Generator Loss : {}".format(disc_loss.data[0], g_loss.data[0])
